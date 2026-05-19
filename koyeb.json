@@ -1,0 +1,67 @@
+{
+  "name": "woululike-festival-waiting",
+  "type": "WEB",
+  "strategy": {
+    "type": "DEPLOYMENT_STRATEGY_TYPE_ROLLING"
+  },
+  "routes": [
+    {
+      "port": 8000,
+      "path": "/",
+      "security_policies": null
+    }
+  ],
+  "ports": [
+    {
+      "port": 8000,
+      "protocol": "http"
+    }
+  ],
+  "proxy_ports": [],
+  "env": [],
+  "regions": ["fra", "tyo"],
+  "scalings": [
+    {
+      "scopes": ["region:fra", "region:tyo"],
+      "min": 1,
+      "max": 1,
+      "targets": []
+    }
+  ],
+  "instance_types": [
+    {
+      "scopes": ["region:fra", "region:tyo"],
+      "type": "nano"
+    }
+  ],
+  "health_checks": [
+    {
+      "grace_period": 5,
+      "interval": 30,
+      "restart_limit": 3,
+      "timeout": 5,
+      "tcp": {
+        "port": 8000
+      }
+    }
+  ],
+  "volumes": [],
+  "config_files": [],
+  "skip_cache": false,
+  "mesh": "DEPLOYMENT_MESH_AUTO",
+  "git": {
+    "repository": "github.com/CGC-KNU/woululike_festival_waiting",
+    "branch": "main",
+    "tag": "",
+    "sha": "",
+    "build_command": "npm install && npm run build",
+    "run_command": "npm start",
+    "no_deploy_on_push": false,
+    "workdir": "waiting-system",
+    "buildpack": {
+      "build_command": "npm install && npm run build",
+      "run_command": "npm start",
+      "privileged": false
+    }
+  }
+}

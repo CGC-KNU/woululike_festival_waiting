@@ -1,20 +1,30 @@
 import { useState, useEffect } from 'react';
+import { ref, onValue, push, update } from 'firebase/database';
+import { db } from '../firebase';
 
-const STORAGE_KEY = 'wouldulike_waiting_list';
+const LIST_REF = 'waitingList';
 
 export function useWaitingList() {
-  const [waitingList, setWaitingList] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [waitingList, setWaitingList] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(waitingList));
-  }, [waitingList]);
+    const listRef = ref(db, LIST_REF);
+    const unsubscribe = onValue(listRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) {
+        setWaitingList([]);
+        return;
+      }
+      const list = Object.entries(data).map(([firebaseKey, value]) => ({
+        ...value,
+        firebaseKey,
+      }));
+      list.sort((a, b) => a.id - b.id);
+      setWaitingList(list);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const addGuest = (guest) => {
     const newGuest = {
@@ -25,32 +35,35 @@ export function useWaitingList() {
       registeredAt: new Date().toISOString(),
       status: 'waiting',
     };
-    setWaitingList((prev) => [...prev, newGuest]);
+    push(ref(db, LIST_REF), newGuest);
     return newGuest;
   };
 
   const callGuest = (id) => {
-    setWaitingList((prev) =>
-      prev.map((g) =>
-        g.id === id ? { ...g, status: 'called', calledAt: new Date().toISOString() } : g
-      )
-    );
+    const guest = waitingList.find((g) => g.id === id);
+    if (!guest) return;
+    update(ref(db, `${LIST_REF}/${guest.firebaseKey}`), {
+      status: 'called',
+      calledAt: new Date().toISOString(),
+    });
   };
 
   const seatGuest = (id) => {
-    setWaitingList((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, status: 'seated' } : g))
-    );
+    const guest = waitingList.find((g) => g.id === id);
+    if (!guest) return;
+    update(ref(db, `${LIST_REF}/${guest.firebaseKey}`), { status: 'seated' });
   };
 
   const cancelGuest = (id) => {
-    setWaitingList((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, status: 'cancelled' } : g))
-    );
+    const guest = waitingList.find((g) => g.id === id);
+    if (!guest) return;
+    update(ref(db, `${LIST_REF}/${guest.firebaseKey}`), { status: 'cancelled' });
   };
 
   const clearAll = () => {
-    setWaitingList([]);
+    waitingList.forEach((guest) => {
+      update(ref(db, `${LIST_REF}/${guest.firebaseKey}`), { status: 'cancelled' });
+    });
   };
 
   const activeList = waitingList.filter(
